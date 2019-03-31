@@ -33,9 +33,9 @@ transformed parameters {
   
   for (n in 1:N) {
     if (n <= T) {
-      nu[n] = mu[n] +  alpha*(X[n]) - beta*(X[n+T]);
+      nu[n] = mu[n] +  alpha*(X[N2TIME[n]]) - beta*(X[N2TIME[n]+T]);
     } else {
-      nu[n] = mu[n] +  alpha*(X[n+T]) - beta*(X[n]);
+      nu[n] = mu[n] +  alpha*(X[N2TIME[n]+T]) - beta*(X[N2TIME[n]]);
     }
   }
 }
