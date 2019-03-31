@@ -7,6 +7,10 @@ library(rstan)
 options(mc.cores = parallel::detectCores())
 rstan_options(auto_write = TRUE)
 
+
+
+library(tidybayes)
+
 create_mu = function(mu_init, sigma_mu, D) {
   mu = numeric(D)
   
@@ -83,7 +87,7 @@ data = df_input %$%
        T = max(Time),
        I = max(ID),
        N2ID = ID,
-       N2Time = Time,
+       N2TIME = Time,
        X = X,
        X_lag1 = X_lag1,
        X_lag2 = X_lag2,
@@ -96,7 +100,67 @@ fit = stan("src/02_model.stan",
            data = data)
 
 fit
-install.packages("tidyr")
 
-library(tidybayes)
+library(tidyposterior)
+
+library(bayesplot)
+
+fit %>%  
+  gather_draws(mu[r], y_pred[r]) %>% 
+  ggplot(aes(r, .value, color = .variable)) +
+  stat_lineribbon(aes(y = .value))
+
+
+df_pred = fit %>%  
+  spread_draws(y_pred[r]) %>% 
+  ungroup() %>% 
+  mutate(ID = if_else(r <= data$T, 1, 2),
+         r = if_else(ID == 1, r, r - data$T)) %>%
+  group_by(ID, r) %>% 
+  summarise(y_pred = mean(y_pred)) %>% 
+  ungroup()
+  
+df_merged = bind_cols(df_pred, df_input)
+
+df_merged %>% 
+  ggplot(aes(Date, y_pred, color = factor(ID))) +
+  geom_line() +
+  geom_point(aes(y=Y)) +
+  scale_x_date(date_labels = "%Y-%m-%d")
+
+
+fit %>%  
+  spread_draws(mu[r]) %>% 
+  ungroup() %>% 
+  mutate(ID = if_else(r <= data$T, 1, 2),
+         r = if_else(ID == 1, r, r - data$T)) %>%
+  group_by(ID, r) %>% 
+  summarise(mu_pred = mean(mu)) %>% 
+  ungroup() %>% 
+  bind_cols(df_input) %>% 
+  ggplot(aes(Date, mu_pred, color = factor(ID))) +
+  geom_line() +
+  geom_point(aes(y=mu)) +
+  scale_x_date(date_labels = "%Y-%m-%d")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
