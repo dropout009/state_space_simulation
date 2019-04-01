@@ -14,6 +14,7 @@ data {
 parameters {
   real<lower=0> alpha;
   real<lower=0> beta;
+  real<lower=0> delta;
   real<lower=0> sigma_mu;
   real<lower=0> sigma_y;
   
@@ -25,7 +26,6 @@ parameters {
 transformed parameters {
   // real nu[T, I];
   real nu[N];
-  
   // for (t in 1:T) {
   //   nu[t, 1] = mu[t, 1] + alpha*(X[t]) - beta*(X[T+t]);
   //   nu[t, 2] = mu[t, 2] + alpha*(X[T+t]) - beta*(X[t]);
@@ -33,9 +33,9 @@ transformed parameters {
   
   for (n in 1:N) {
     if (n <= T) {
-      nu[n] = mu[n] +  alpha*(X[N2TIME[n]]) - beta*(X[N2TIME[n]+T]);
+      nu[n] = mu[n] +  alpha*(X[N2TIME[n]] + delta*X_lag1[N2TIME[n]] + (delta^2)*X_lag2[N2TIME[n]]+ (delta^3)*X_lag3[N2TIME[n]]) - beta*(X[N2TIME[n]+T] + delta*X_lag1[N2TIME[n]+T] + (delta^2)*X_lag2[N2TIME[n]+T]+ (delta^3)*X_lag3[N2TIME[n]+T] );
     } else {
-      nu[n] = mu[n] +  alpha*(X[N2TIME[n]+T]) - beta*(X[N2TIME[n]]);
+      nu[n] = mu[n] +  alpha*(X[N2TIME[n]+T] + delta*X_lag1[N2TIME[n]+T] + (delta^2)*X_lag2[N2TIME[n]+T]+ (delta^3)*X_lag3[N2TIME[n]+T] ) - beta*(X[N2TIME[n]] + delta*X_lag1[N2TIME[n]] + (delta^2)*X_lag2[N2TIME[n]]+ (delta^3)*X_lag3[N2TIME[n]]);
     }
   }
 }

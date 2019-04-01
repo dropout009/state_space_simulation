@@ -38,13 +38,13 @@ create_mu = function(mu_init, sigma_mu, D) {
 date_list = seq.Date(as_date("2018-01-01"), as_date("2018-02-28"), 1)
 D = length(date_list)
 
-alpha = 0.1
-gamma = 0.05
-delta = 0.7
+alpha = c(0.12, 0.08)
+beta = c(0.05, 0.07)
+delta = c(0.6, 0.9)
 
 
-sigma_mu = 0.1
-sigma_y = 1
+sigma_mu = c(0.1, 0.15)
+sigma_y = c(1.2, 0.8)
 
 
 df = tibble(Date = date_list,
@@ -58,10 +58,10 @@ df = tibble(Date = date_list,
          X2_lag3 = lag(X2, 3),
          mu1 = sin(1:D/D * 2 * pi)*5 + 30,
          mu2 = cos(1:D/D * 2 * pi)*5 + 30,
-         nu1 = mu1 + alpha*(X1 + delta*X1_lag1 + delta^2*X1_lag2 + delta^3*X1_lag3)  - gamma*(X2 + delta*X2_lag1 + delta^2*X2_lag2 + delta^3*X2_lag3),
-         nu2 = mu2 + alpha*(X2 + delta*X2_lag1 + delta^2*X2_lag2 + delta^3*X2_lag3)  - gamma*(X1 + delta*X1_lag1 + delta^2*X1_lag2 + delta^3*X1_lag3),
-         Y1 = nu1  + rnorm(D, 0, sigma_y),
-         Y2 = nu2  + rnorm(D, 0, sigma_y),
+         nu1 = mu1 + alpha[1]*(X1 + delta[1]*X1_lag1 + delta[1]^2*X1_lag2 + delta[1]^3*X1_lag3)  - beta[1]*(X2 + delta[2]*X2_lag1 + delta[2]^2*X2_lag2 + delta[2]^3*X2_lag3),
+         nu2 = mu2 + alpha[2]*(X2 + delta[2]*X2_lag1 + delta[2]^2*X2_lag2 + delta[2]^3*X2_lag3)  - beta[2]*(X1 + delta[1]*X1_lag1 + delta[1]^2*X1_lag2 + delta[1]^3*X1_lag3),
+         Y1 = nu1  + rnorm(D, 0, sigma_y[1]),
+         Y2 = nu2  + rnorm(D, 0, sigma_y[2]),
   )
 
 df1 = df %>% 
@@ -105,10 +105,8 @@ data = df_input %$%
        X_lag3 = X_lag3,
        Y = Y)
 
-
-fit = stan("src/03_adstock_multilevel.stan", 
-           #init = init_list_list,
-           data = data)
+model = stan_model("src/03_adstock_multilevel.stan")
+fit = sampling(model, data = data)
 
 fit
 
@@ -141,11 +139,9 @@ df_merged %>%
 
 
 fit %>%  
-  spread_draws(mu[r]) %>% 
+  spread_draws(mu[t, i]) %>% 
   ungroup() %>% 
-  mutate(ID = if_else(r <= data$T, 1, 2),
-         r = if_else(ID == 1, r, r - data$T)) %>%
-  group_by(ID, r) %>% 
+  group_by(i, t) %>% 
   summarise(mu_pred = mean(mu)) %>% 
   ungroup() %>% 
   bind_cols(df_input) %>% 
@@ -155,7 +151,17 @@ fit %>%
   scale_x_date(date_labels = "%Y-%m-%d")
 
 
-
+fit %>%  
+  spread_draws(nu[t, i]) %>% 
+  ungroup() %>% 
+  group_by(i, t) %>% 
+  summarise(nu_pred = mean(nu)) %>% 
+  ungroup() %>% 
+  bind_cols(df_input) %>% 
+  ggplot(aes(Date, nu_pred, color = factor(ID))) +
+  geom_line() +
+  geom_point(aes(y=nu)) +
+  scale_x_date(date_labels = "%Y-%m-%d")
 
 
 
